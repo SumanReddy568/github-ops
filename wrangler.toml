@@ -1,0 +1,11 @@
+name = "github-ops"
+compatibility_date = "2026-01-01"
+account_id = "149585afc77fbfb3dfdf5b43646fb8ca"
+
+# No `main` on purpose: this is a static-assets-only deploy. There is no
+# server-side code to run — login/session/token-storage reuse the existing
+# open-api-worker (/login, /signup, /settings) and every GitHub call goes
+# browser -> api.github.com directly (the GitHub REST API is CORS-open).
+# The PAT therefore never transits this project.
+[assets]
+directory = "./public"

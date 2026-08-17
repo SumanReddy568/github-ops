@@ -1,0 +1,14 @@
+{
+  "name": "github-ops",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node test.mjs",
+    "predeploy": "node test.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.100.0"
+  }
+}

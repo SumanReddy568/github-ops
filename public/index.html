@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub Ops</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --line: #30363d; --fg: #e6edf3;
+    --dim: #8b949e; --accent: #388bfd; --green: #3fb950; --purple: #a371f7;
+    --red: #f85149; --yellow: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit;
+  }
+  button:hover { border-color: var(--dim); }
+  button.primary { background: #238636; border-color: #2ea043; }
+  button.danger { background: #4a1d1d; border-color: var(--red); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input, select {
+    background: #0d1117; color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; font: inherit;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dim { color: var(--dim); }
+  .err { color: var(--red); min-height: 20px; }
+  .ok { color: var(--green); }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  header {
+    border-bottom: 1px solid var(--line); padding: 12px 20px;
+    display: flex; gap: 12px; align-items: center; justify-content: space-between;
+  }
+  .hidden { display: none !important; }
+  /* login */
+  #login { max-width: 340px; margin: 12vh auto; }
+  #login input { width: 100%; margin-bottom: 8px; }
+  /* repo chips */
+  #repoList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 190px; overflow: auto; }
+  .chip {
+    display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+    border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+    user-select: none; background: #0d1117;
+  }
+  .chip.on { border-color: var(--accent); background: #12243d; }
+  /* tabs */
+  nav.tabs { display: flex; gap: 4px; margin: 18px 0 12px; border-bottom: 1px solid var(--line); }
+  nav.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; }
+  nav.tabs button.on { border-bottom-color: #f78166; color: var(--fg); }
+  /* table */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  tbody tr:hover { background: #1c2128; }
+  .badge { font-size: 11px; padding: 1px 8px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
+  .b-open { color: var(--green); border-color: var(--green); }
+  .b-merged { color: var(--purple); border-color: var(--purple); }
+  .b-closed { color: var(--red); border-color: var(--red); }
+  .b-draft { color: var(--dim); border-color: var(--dim); }
+  /* stats */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .stat { font-size: 22px; font-weight: 600; }
+  .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: #0d1117; margin: 10px 0 8px; }
+  .kv { display: flex; justify-content: space-between; font-size: 12px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+
+<section id="login" class="panel">
+  <h1 style="margin-bottom:14px">GitHub Ops</h1>
+  <input id="email" type="email" placeholder="email" autocomplete="username">
+  <input id="password" type="password" placeholder="password" autocomplete="current-password">
+  <div class="row">
+    <button id="loginBtn" class="primary">Log in</button>
+    <button id="signupBtn">Sign up</button>
+  </div>
+  <p id="loginErr" class="err"></p>
+  <p class="dim" style="font-size:12px">Shared account with the other tools on
+    open-api-worker. Password never leaves this page — only its SHA-256 hash.</p>
+</section>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>GitHub Ops</h1>
+    <div class="row dim" style="font-size:12px">
+      <span id="whoami"></span>
+      <span id="rate"></span>
+      <button id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="patPanel" class="panel" style="margin-bottom:14px">
+      <h2>GitHub token</h2>
+      <div class="row">
+        <input id="pat" type="password" placeholder="ghp_… / github_pat_…" style="flex:1;min-width:240px">
+        <button id="patSave" class="primary">Save</button>
+        <button id="patClear">Clear</button>
+      </div>
+      <p id="patMsg" class="dim" style="font-size:12px;margin-bottom:0">
+        Needs <span class="mono">repo</span> scope. Stored in your synced settings on
+        open-api-worker so it follows you across devices. For SSO orgs, authorize the
+        token for the org first.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>Repositories</h2>
+      <div class="row">
+        <input id="repoAdd" placeholder="owner/repo — paste or type, Enter to add" style="flex:1;min-width:240px">
+        <button id="repoAddBtn">Add</button>
+        <button id="repoFetch">Load mine</button>
+        <button id="repoSelAll">All</button>
+        <button id="repoSelNone">None</button>
+      </div>
+      <div id="repoList"></div>
+    </div>
+
+    <nav class="tabs">
+      <button data-tab="prs" class="on">My PRs</button>
+      <button data-tab="stats">Stats</button>
+      <button data-tab="ops">Ops</button>
+    </nav>
+
+    <section id="tab-prs">
+      <div class="row" style="margin-bottom:10px">
+        <select id="prState">
+          <option value="all">All states</option>
+          <option value="open">Open</option>
+          <option value="merged">Merged</option>
+          <option value="closed">Closed (unmerged)</option>
+        </select>
+        <input id="prFilter" placeholder="filter title/branch…" style="flex:1;min-width:180px">
+        <button id="prLoad" class="primary">Load PRs</button>
+        <span id="prMsg" class="dim"></span>
+      </div>
+      <div class="panel" style="padding:0;overflow:auto">
+        <table>
+          <thead><tr><th>Repo</th><th>#</th><th>Title</th><th>State</th><th>Created</th><th>Updated</th></tr></thead>
+          <tbody id="prRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-stats" class="hidden">
+      <div id="statCards" class="cards"></div>
+      <p class="dim" style="font-size:12px">Computed from the PR list above — hit “Load PRs” first.</p>
+    </section>
+
+    <section id="tab-ops" class="hidden">
+      <div class="panel" style="margin-bottom:14px">
+        <h2>Merge branch → branch</h2>
+        <div class="row">
+          <select id="opsRepo"></select>
+          <button id="opsBranches">Load branches</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label class="dim">from (head)</label><select id="opsHead"></select>
+          <label class="dim">into (base)</label><select id="opsBase"></select>
+          <button id="opsCompare">Compare</button>
+          <button id="opsMerge" class="primary">Merge</button>
+        </div>
+        <p id="opsMsg" class="dim" style="white-space:pre-wrap"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Merge a pull request</h2>
+        <div class="row">
+          <select id="prMergeRepo"></select>
+          <input id="prMergeNum" type="number" placeholder="PR #" style="width:110px">
+          <select id="prMergeMethod">
+            <option value="merge">merge commit</option>
+            <option value="squash">squash</option>
+            <option value="rebase">rebase</option>
+          </select>
+          <button id="prMergeBtn" class="primary">Merge PR</button>
+        </div>
+        <p id="prMergeMsg" class="dim" style="white-space:pre-wrap"></p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
