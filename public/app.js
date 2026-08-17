@@ -15,6 +15,7 @@ const state = {
   pat: null,          // GitHub PAT, loaded from /settings
   login: null,        // GitHub username
   repos: [],          // [{full, selected}]
+  found: [],          // repo names from search, for autocomplete only
   prs: [],            // search/issues items + _repo
 };
 
@@ -52,8 +53,13 @@ async function gh(path, { method = "GET", body } = {}) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+  // Search has its own 30/min bucket, separate from the 5000/hr core budget —
+  // label which one this number came from or it reads as a scare.
   const remaining = res.headers.get("x-ratelimit-remaining");
-  if (remaining !== null) $("rate").textContent = `api ${remaining} left`;
+  if (remaining !== null) {
+    const bucket = path.includes("/search/") ? "search/min" : "core/hr";
+    $("rate").textContent = `${remaining} ${bucket} left`;
+  }
   const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.message || `GitHub ${res.status}`, { cause: res.status });
@@ -102,9 +108,15 @@ function logout() {
 }
 
 // ── repos ───────────────────────────────────────────────────────────────────
+const shownRepos = () => {
+  const needle = $("repoFilter").value.trim().toLowerCase();
+  return state.repos.filter((r) => !needle || r.full.toLowerCase().includes(needle));
+};
+
 function renderRepos() {
+  const shown = shownRepos();
   $("repoList").replaceChildren(
-    ...state.repos.map((r) => {
+    ...shown.map((r) => {
       const el = document.createElement("span");
       el.className = "chip" + (r.selected ? " on" : "");
       el.textContent = r.full;
@@ -112,12 +124,40 @@ function renderRepos() {
       return el;
     }),
   );
-  const opts = state.repos.filter((r) => r.selected).map((r) => r.full);
-  for (const sel of [$("opsRepo"), $("prMergeRepo")]) {
-    const keep = sel.value;
-    sel.replaceChildren(...opts.map((f) => new Option(f, f)));
-    if (opts.includes(keep)) sel.value = keep;
+  $("repoCount").textContent = `${shown.length}/${state.repos.length} shown · ${selected().length} selected`;
+  renderSuggest();
+  // Seed the ops pickers with a selected repo, but never overwrite typing.
+  const first = selected()[0] || "";
+  for (const el of [$("opsRepo"), $("prMergeRepo")]) if (!el.value) el.value = first;
+}
+
+// Suggestions = repos you have + anything the search turned up.
+function renderSuggest() {
+  const all = [...new Set([...state.repos.map((r) => r.full), ...state.found])];
+  $("repoSuggest").replaceChildren(...all.map((f) => new Option(f, f)));
+}
+
+// Discovery only — the local list already covers loaded repos and filters with
+// zero requests. This finds repos you haven't loaded, so it fires late and only
+// on 3+ chars (search shares a 30/min bucket with the PR queries).
+async function searchRepos(q) {
+  if (!state.pat) return;
+  const { data } = await gh(`/search/repositories?q=${encodeURIComponent(q)}&per_page=20`);
+  const known = new Set(state.repos.map((r) => r.full));
+  const extra = (data.items || []).map((i) => i.full_name).filter((f) => !known.has(f));
+  if (!extra.length) return;
+  state.found = [...new Set([...state.found, ...extra])].slice(-100);
+  renderSuggest();
+}
+
+// Ops inputs accept free text, so validate before any write reaches GitHub.
+function opsRepo(inputId, msgId) {
+  const p = parseRepo($(inputId).value);
+  if (!p) {
+    $(msgId).textContent = "enter the repo as owner/name";
+    return null;
   }
+  return p.full;
 }
 
 const selected = () => state.repos.filter((r) => r.selected).map((r) => r.full);
@@ -229,19 +269,25 @@ function renderStats() {
 const fmtHours = (h) => (h < 48 ? `${h}h` : `${(h / 24).toFixed(1)}d`);
 
 // ── ops ─────────────────────────────────────────────────────────────────────
+const BRANCH_PAGES = 10; // 1000 branches of autocomplete; typing covers the rest
+
 async function loadBranches() {
-  const repo = $("opsRepo").value;
+  const repo = opsRepo("opsRepo", "opsMsg");
   if (!repo) return;
   $("opsMsg").textContent = "loading branches…";
-  const list = await ghPaged(`/repos/${repo}/branches?per_page=100`, 3);
+  const list = await ghPaged(`/repos/${repo}/branches?per_page=100`, BRANCH_PAGES);
   const names = list.map((b) => b.name);
-  for (const sel of [$("opsHead"), $("opsBase")]) sel.replaceChildren(...names.map((n) => new Option(n, n)));
-  $("opsMsg").textContent = `${names.length} branches`;
+  $("branchList").replaceChildren(...names.map((n) => new Option(n, n)));
+  const capped = names.length >= BRANCH_PAGES * 100;
+  $("opsMsg").textContent = `${names.length} branches for autocomplete${
+    capped ? " (GitHub returns these alphabetically and this is the cap — just type any branch name, it doesn't have to be in the list)" : ""
+  }`;
 }
 
 async function compare() {
-  const repo = $("opsRepo").value, head = $("opsHead").value, base = $("opsBase").value;
-  if (!repo || !head || !base) return;
+  const repo = opsRepo("opsRepo", "opsMsg");
+  const head = $("opsHead").value.trim(), base = $("opsBase").value.trim();
+  if (!repo || !head || !base) return ($("opsMsg").textContent ||= "type both branches");
   $("opsMsg").textContent = "comparing…";
   const { data } = await gh(`/repos/${repo}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`);
   $("opsMsg").textContent =
@@ -250,8 +296,9 @@ async function compare() {
 }
 
 async function mergeBranch() {
-  const repo = $("opsRepo").value, head = $("opsHead").value, base = $("opsBase").value;
-  if (!repo || !head || !base) return ($("opsMsg").textContent = "pick repo + branches");
+  const repo = opsRepo("opsRepo", "opsMsg");
+  const head = $("opsHead").value.trim(), base = $("opsBase").value.trim();
+  if (!repo || !head || !base) return ($("opsMsg").textContent ||= "type both branches");
   if (head === base) return ($("opsMsg").textContent = "head and base are the same branch");
   if (!confirm(`Merge ${head} INTO ${base} on ${repo}?\n\nThis writes to GitHub immediately.`)) return;
   $("opsMsg").textContent = "merging…";
@@ -270,8 +317,9 @@ async function mergeBranch() {
 }
 
 async function mergePr() {
-  const repo = $("prMergeRepo").value, num = $("prMergeNum").value, method = $("prMergeMethod").value;
-  if (!repo || !num) return ($("prMergeMsg").textContent = "pick repo + PR number");
+  const repo = opsRepo("prMergeRepo", "prMergeMsg");
+  const num = $("prMergeNum").value, method = $("prMergeMethod").value;
+  if (!repo || !num) return ($("prMergeMsg").textContent ||= "enter a PR number");
   if (!confirm(`${method} PR #${num} on ${repo}?\n\nThis writes to GitHub immediately.`)) return;
   $("prMergeMsg").textContent = "merging…";
   try {
@@ -303,7 +351,12 @@ async function boot() {
   $("whoami").textContent = state.email || "";
   state.repos = (settings.repos || []).map((full) => ({ full, selected: true }));
   renderRepos();
-  if (settings.githubToken) await usePat(settings.githubToken);
+  if (settings.githubToken) {
+    await usePat(settings.githubToken);
+  } else {
+    $("patStatus").textContent = "— add your GitHub token to start";
+    $("settings").open = true;
+  }
 }
 
 async function usePat(pat) {
@@ -312,11 +365,14 @@ async function usePat(pat) {
     const { data } = await gh("/user");
     state.login = data.login;
     $("patMsg").innerHTML = `<span class="ok">✓ ${escapeHtml(data.login)}</span> — token active`;
+    $("patStatus").textContent = `— token active (${data.login})`;
     $("pat").value = "";
     $("pat").placeholder = "stored ✓ — paste a new one to replace";
   } catch (e) {
     state.pat = null;
     $("patMsg").innerHTML = `<span class="err">token rejected: ${escapeHtml(e.message)}</span>`;
+    $("patStatus").textContent = "— token rejected, update it";
+    $("settings").open = true; // a dead token is the one thing worth interrupting for
   }
 }
 
@@ -329,26 +385,46 @@ $("patSave").onclick = async () => {
   const pat = $("pat").value.trim();
   if (!pat) return;
   await usePat(pat);
-  if (state.pat) await saveSettings({ githubToken: pat, repos: selected() });
+  if (state.pat) {
+    await saveSettings({ githubToken: pat, repos: selected() });
+    $("settings").open = false; // done here — get out of the way
+  }
 };
 $("patClear").onclick = async () => {
   state.pat = state.login = null;
   await saveSettings({ githubToken: "", repos: selected() });
   $("patMsg").textContent = "token cleared";
+  $("patStatus").textContent = "— no token";
   $("pat").placeholder = "ghp_… / github_pat_…";
 };
 
 $("repoAddBtn").onclick = () => addRepo($("repoAdd").value) && ($("repoAdd").value = "");
 $("repoAdd").onkeydown = (e) => e.key === "Enter" && $("repoAddBtn").onclick();
 $("repoFetch").onclick = () => fetchMyRepos().catch((e) => ($("prMsg").textContent = e.message));
-$("repoSelAll").onclick = () => { state.repos.forEach((r) => (r.selected = true)); renderRepos(); persistRepos(); };
+$("repoFilter").oninput = renderRepos;
+// "Select all" honours the filter — otherwise filtering then clicking it would
+// silently select every repo you've ever loaded.
+$("repoSelAll").onclick = () => { shownRepos().forEach((r) => (r.selected = true)); renderRepos(); persistRepos(); };
 $("repoSelNone").onclick = () => { state.repos.forEach((r) => (r.selected = false)); renderRepos(); persistRepos(); };
+
+let searchTimer;
+$("repoAdd").oninput = () => {
+  clearTimeout(searchTimer);
+  const q = $("repoAdd").value.trim();
+  if (q.length < 3 || parseRepo(q)) return; // exact owner/repo needs no search
+  searchTimer = setTimeout(() => searchRepos(q).catch(() => {}), 400);
+};
 
 $("prLoad").onclick = () => loadPrs().catch((e) => ($("prMsg").textContent = e.message));
 $("prFilter").oninput = renderPrs;
 $("prState").onchange = () => loadPrs().catch((e) => ($("prMsg").textContent = e.message));
 
 $("opsBranches").onclick = () => loadBranches().catch((e) => ($("opsMsg").textContent = e.message));
+// Editing the repo must not leave the previous repo's branches in the datalist.
+$("opsRepo").oninput = () => {
+  $("branchList").replaceChildren();
+  $("opsMsg").textContent = "";
+};
 $("opsCompare").onclick = () => compare().catch((e) => ($("opsMsg").textContent = e.message));
 $("opsMerge").onclick = mergeBranch;
 $("prMergeBtn").onclick = mergePr;

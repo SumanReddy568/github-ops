@@ -37,6 +37,8 @@
   .ok { color: var(--green); }
   h1 { font-size: 18px; margin: 0; }
   h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+  summary { cursor: pointer; font-weight: 600; }
+  summary span { font-weight: 400; font-size: 12px; }
   header {
     border-bottom: 1px solid var(--line); padding: 12px 20px;
     display: flex; gap: 12px; align-items: center; justify-content: space-between;
@@ -101,30 +103,43 @@
   </header>
 
   <div class="wrap">
-    <div id="patPanel" class="panel" style="margin-bottom:14px">
-      <h2>GitHub token</h2>
-      <div class="row">
-        <input id="pat" type="password" placeholder="ghp_… / github_pat_…" style="flex:1;min-width:240px">
-        <button id="patSave" class="primary">Save</button>
-        <button id="patClear">Clear</button>
+    <!-- Native disclosure: open on first run (no token), collapsed once a valid
+         token is stored. No toggle code, no modal. -->
+    <details id="settings" class="panel" style="margin-bottom:14px">
+      <summary>⚙ Settings <span id="patStatus" class="dim"></span></summary>
+      <div style="margin-top:14px">
+        <h2>GitHub token</h2>
+        <div class="row">
+          <input id="pat" type="password" placeholder="ghp_… / github_pat_…" style="flex:1;min-width:240px">
+          <button id="patSave" class="primary">Save</button>
+          <button id="patClear">Clear</button>
+        </div>
+        <p id="patMsg" class="dim" style="font-size:12px;margin-bottom:0">
+          Needs <span class="mono">repo</span> scope. Stored in your synced settings on
+          open-api-worker so it follows you across devices. For SSO orgs, authorize the
+          token for the org first.
+        </p>
       </div>
-      <p id="patMsg" class="dim" style="font-size:12px;margin-bottom:0">
-        Needs <span class="mono">repo</span> scope. Stored in your synced settings on
-        open-api-worker so it follows you across devices. For SSO orgs, authorize the
-        token for the org first.
-      </p>
-    </div>
+    </details>
 
     <div class="panel">
       <h2>Repositories</h2>
       <div class="row">
-        <input id="repoAdd" placeholder="owner/repo — paste or type, Enter to add" style="flex:1;min-width:240px">
+        <input id="repoAdd" list="repoSuggest" autocomplete="off"
+               placeholder="type to search, or paste owner/repo — Enter to add" style="flex:1;min-width:240px">
         <button id="repoAddBtn">Add</button>
         <button id="repoFetch">Load mine</button>
-        <button id="repoSelAll">All</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="repoFilter" placeholder="filter the list below…" style="flex:1;min-width:180px">
+        <button id="repoSelAll">Select all shown</button>
         <button id="repoSelNone">None</button>
+        <span id="repoCount" class="dim" style="font-size:12px"></span>
       </div>
       <div id="repoList"></div>
+      <!-- One datalist feeds every repo input: the add box and both ops
+           pickers. Holds your loaded repos plus any search hits. -->
+      <datalist id="repoSuggest"></datalist>
     </div>
 
     <nav class="tabs">
@@ -162,22 +177,28 @@
       <div class="panel" style="margin-bottom:14px">
         <h2>Merge branch → branch</h2>
         <div class="row">
-          <select id="opsRepo"></select>
+          <input id="opsRepo" list="repoSuggest" autocomplete="off" placeholder="owner/repo" style="min-width:240px">
           <button id="opsBranches">Load branches</button>
         </div>
         <div class="row" style="margin-top:10px">
-          <label class="dim">from (head)</label><select id="opsHead"></select>
-          <label class="dim">into (base)</label><select id="opsBase"></select>
+          <label class="dim">from (head)</label>
+          <input id="opsHead" list="branchList" placeholder="feature/…" style="min-width:200px">
+          <label class="dim">into (base)</label>
+          <input id="opsBase" list="branchList" placeholder="drop/…" style="min-width:200px">
           <button id="opsCompare">Compare</button>
           <button id="opsMerge" class="primary">Merge</button>
         </div>
+        <!-- Both inputs share one datalist: native type-to-filter, and free
+             text is still accepted so a branch outside the loaded page is
+             usable without any combobox code. -->
+        <datalist id="branchList"></datalist>
         <p id="opsMsg" class="dim" style="white-space:pre-wrap"></p>
       </div>
 
       <div class="panel">
         <h2>Merge a pull request</h2>
         <div class="row">
-          <select id="prMergeRepo"></select>
+          <input id="prMergeRepo" list="repoSuggest" autocomplete="off" placeholder="owner/repo" style="min-width:240px">
           <input id="prMergeNum" type="number" placeholder="PR #" style="width:110px">
           <select id="prMergeMethod">
             <option value="merge">merge commit</option>
