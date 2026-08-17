@@ -378,7 +378,11 @@ async function usePat(pat) {
 
 $("loginBtn").onclick = () => doAuth("login");
 $("signupBtn").onclick = () => doAuth("signup");
-$("password").onkeydown = (e) => e.key === "Enter" && doAuth("login");
+// Block body, not `e.key === "Enter" && …`: an on* handler that returns false
+// cancels the event's default action, which swallows every non-Enter keystroke
+// and makes the field look broken.
+$("password").onkeydown = (e) => { if (e.key === "Enter") doAuth("login"); };
+$("email").onkeydown = (e) => { if (e.key === "Enter") $("password").focus(); };
 $("logoutBtn").onclick = logout;
 
 $("patSave").onclick = async () => {
@@ -398,8 +402,8 @@ $("patClear").onclick = async () => {
   $("pat").placeholder = "ghp_… / github_pat_…";
 };
 
-$("repoAddBtn").onclick = () => addRepo($("repoAdd").value) && ($("repoAdd").value = "");
-$("repoAdd").onkeydown = (e) => e.key === "Enter" && $("repoAddBtn").onclick();
+$("repoAddBtn").onclick = () => { if (addRepo($("repoAdd").value)) $("repoAdd").value = ""; };
+$("repoAdd").onkeydown = (e) => { if (e.key === "Enter") $("repoAddBtn").onclick(); };
 $("repoFetch").onclick = () => fetchMyRepos().catch((e) => ($("prMsg").textContent = e.message));
 $("repoFilter").oninput = renderRepos;
 // "Select all" honours the filter — otherwise filtering then clicking it would
