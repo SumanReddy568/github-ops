@@ -1,0 +1,19 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e11]: GitHub Ops
+    - generic [ref=e12]: Console
+  - generic [ref=e13]:
+    - heading "Sign in" [level=1] [ref=e14]
+    - paragraph [ref=e15]: Your PRs, stats and merges across every repo.
+    - generic [ref=e16]:
+      - generic [ref=e17]: Email
+      - textbox "Email" [ref=e18]:
+        - /placeholder: you@company.com
+    - generic [ref=e19]:
+      - generic [ref=e20]: Password
+      - textbox "Password" [ref=e21]:
+        - /placeholder: ••••••••
+    - generic [ref=e22]:
+      - button "Log in" [ref=e23] [cursor=pointer]
+      - button "Sign up" [ref=e24] [cursor=pointer]
+  - paragraph [ref=e25]: Shared account with the other tools on open-api-worker. Your password never leaves this page — only its SHA-256 hash.

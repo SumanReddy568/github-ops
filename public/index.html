@@ -3,118 +3,312 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>GitHub Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='20'>⑂</text></svg>">
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --line: #30363d; --fg: #e6edf3;
-    --dim: #8b949e; --accent: #388bfd; --green: #3fb950; --purple: #a371f7;
-    --red: #f85149; --yellow: #d29922;
+    --bg: #0a0d13; --panel: #11161f; --panel2: #161d28; --raise: #1e2735;
+    --sunk: #0b0f16;
+    --line: #222a37; --line2: #2d3746;
+    --fg: #e9eef7; --dim: #8c98aa; --faint: #5a6675;
+    --accent: #4c8dff; --accent-bg: #16294a; --accent-line: #2d5599;
+    --indigo: #6b5bf5;
+    --green: #3fb950; --purple: #a371f7; --red: #f85149; --amber: #d29922;
+    --r: 14px; --r-sm: 9px;
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 18px 44px -22px rgba(0,0,0,.85);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--fg);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font: 400 14px/1.55 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Ambient wash so the page reads as a designed surface, not a blank canvas. */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(58rem 26rem at 12% -8%, rgba(76,141,255,.13), transparent 62%),
+      radial-gradient(46rem 24rem at 92% -6%, rgba(107,91,245,.12), transparent 62%);
   }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-  button {
-    background: var(--panel); color: var(--fg); border: 1px solid var(--line);
-    border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit;
-  }
-  button:hover { border-color: var(--dim); }
-  button.primary { background: #238636; border-color: #2ea043; }
-  button.danger { background: #4a1d1d; border-color: var(--red); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  input, select {
-    background: #0d1117; color: var(--fg); border: 1px solid var(--line);
-    border-radius: 6px; padding: 6px 10px; font: inherit;
-  }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .dim { color: var(--dim); }
-  .err { color: var(--red); min-height: 20px; }
-  .ok { color: var(--green); }
-  h1 { font-size: 18px; margin: 0; }
-  h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
-  summary { cursor: pointer; font-weight: 600; }
-  summary span { font-weight: 400; font-size: 12px; }
-  header {
-    border-bottom: 1px solid var(--line); padding: 12px 20px;
-    display: flex; gap: 12px; align-items: center; justify-content: space-between;
-  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .hidden { display: none !important; }
-  /* login */
-  #login { max-width: 340px; margin: 12vh auto; }
-  #login input { width: 100%; margin-bottom: 8px; }
-  /* repo chips */
-  #repoList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 190px; overflow: auto; }
-  .chip {
-    display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
-    border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: pointer;
-    user-select: none; background: #0d1117;
-  }
-  .chip.on { border-color: var(--accent); background: #12243d; }
-  /* tabs */
-  nav.tabs { display: flex; gap: 4px; margin: 18px 0 12px; border-bottom: 1px solid var(--line); }
-  nav.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; }
-  nav.tabs button.on { border-bottom-color: #f78166; color: var(--fg); }
-  /* table */
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-  tbody tr:hover { background: #1c2128; }
-  .badge { font-size: 11px; padding: 1px 8px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
-  .b-open { color: var(--green); border-color: var(--green); }
-  .b-merged { color: var(--purple); border-color: var(--purple); }
-  .b-closed { color: var(--red); border-color: var(--red); }
-  .b-draft { color: var(--dim); border-color: var(--dim); }
-  /* stats */
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
-  .stat { font-size: 22px; font-weight: 600; }
-  .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: #0d1117; margin: 10px 0 8px; }
-  .kv { display: flex; justify-content: space-between; font-size: 12px; }
+  .dim { color: var(--dim); }
+  .ok { color: var(--green); }
+  .err { color: var(--red); }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .fine { font-size: 12px; color: var(--faint); line-height: 1.6; }
+  /* Small-caps meta label — the reference dashboard's VIEW / GROUP BY device. */
+  .lbl { font-size: 10.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase; color: var(--faint); }
+
+  /* ── controls ─────────────────────────────────────────────────────────── */
+  button {
+    height: 34px; padding: 0 13px; border-radius: var(--r-sm);
+    border: 1px solid var(--line2); background: var(--panel2); color: var(--fg);
+    font: 500 13px/1 Inter, sans-serif; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+    transition: background .12s, border-color .12s, transform .06s;
+  }
+  button:hover { background: var(--raise); border-color: #3b4759; }
+  button:active { transform: translateY(1px); }
+  button.primary {
+    background: linear-gradient(180deg, #4d8bf5, #2f6ad9); border-color: #4d8bf5; color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  button.primary:hover { background: linear-gradient(180deg, #5d97f8, #3873e0); }
+  button.indigo {
+    background: linear-gradient(180deg, #7a6bf7, #5a49e0); border-color: #7a6bf7; color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  button.indigo:hover { background: linear-gradient(180deg, #8878f9, #6555e6); }
+  /* Writes hit GitHub with no undo — they should not look like a nav button. */
+  button.warn { border-color: #6b4a12; background: #2a1f0c; color: #f0c674; }
+  button.warn:hover { background: #372809; border-color: #8a5f16; }
+  button.ghost { background: transparent; border-color: transparent; color: var(--dim); }
+  button.ghost:hover { background: var(--panel2); color: var(--fg); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  input, select {
+    height: 34px; padding: 0 11px; border-radius: var(--r-sm);
+    background: var(--sunk); color: var(--fg); border: 1px solid var(--line2);
+    font: 400 13px/1 Inter, sans-serif;
+  }
+  input::placeholder { color: var(--faint); }
+  input:focus, select:focus {
+    outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px rgba(76,141,255,.16);
+  }
+  label.field { display: block; margin-bottom: 12px; }
+  label.field > span { display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+  label.field > input { width: 100%; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 200px; }
+  .spacer { flex: 1; }
+  h2 { font-size: 10.5px; font-weight: 600; margin: 0 0 13px; letter-spacing: .11em; text-transform: uppercase; color: var(--faint); }
+
+  /* ── login ────────────────────────────────────────────────────────────── */
+  #login { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+  .auth { width: 100%; max-width: 390px; }
+  .auth-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; box-shadow: var(--shadow); }
+  .auth h1 { font-size: 21px; margin: 0 0 4px; letter-spacing: -.015em; }
+  .auth .sub { margin: 0 0 20px; font-size: 13px; color: var(--dim); }
+  #loginErr:empty { display: none; }
+  #loginErr {
+    margin: 14px 0 0; font-size: 13px; padding: 9px 11px; border-radius: var(--r-sm);
+    background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.32);
+  }
+
+  /* ── brand ────────────────────────────────────────────────────────────── */
+  .logo {
+    width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none;
+    background: linear-gradient(145deg, #5b93ff, #7a5bff); color: #fff;
+    box-shadow: 0 5px 16px -5px rgba(91,147,255,.75);
+  }
+  .brandline { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .brandline b { font-size: 16px; letter-spacing: -.01em; }
+  .tag {
+    font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+    border: 1px solid var(--line2); border-radius: 20px; padding: 3px 9px;
+  }
+
+  /* ── app shell: centred stack of cards ────────────────────────────────── */
+  .shell { max-width: 1280px; margin: 0 auto; padding: 22px 24px 64px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px 22px; }
+  .hero h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -.03em; }
+  .hero .meta { text-align: right; display: grid; gap: 2px; }
+  .hero #whoami { font-size: 13px; font-weight: 500; }
+  .hero #rate { font-size: 11px; color: var(--faint); font-style: italic; }
+  .hero #rate:not(:empty)::before { content: "◷ "; font-style: normal; }
+
+  /* segmented pill group, styled from the reference's VIEW switcher.
+     Not named .bar — app.js already uses that for the stat progress bars. */
+  .viewbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 18px; }
+  nav.tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--sunk); border: 1px solid var(--line); border-radius: 11px; }
+  nav.tabs button {
+    height: 30px; border: none; background: none; color: var(--dim); border-radius: 7px; font-weight: 600; gap: 8px;
+  }
+  nav.tabs button:hover { background: var(--panel2); color: var(--fg); }
+  nav.tabs button.on {
+    background: linear-gradient(180deg, var(--raise), #19212d); color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  nav.tabs svg { flex: none; opacity: .95; }
+
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .head h1 { font-size: 18px; margin: 0; letter-spacing: -.015em; }
+  .head p { margin: 2px 0 0; font-size: 13px; color: var(--dim); }
+  .head #prMsg:not(:empty) { color: var(--accent); }
+
+  /* ── disclosure cards (settings, repos) ───────────────────────────────── */
+  details.panel { padding: 0; }
+  details.panel > summary {
+    padding: 14px 18px; cursor: pointer; list-style: none;
+    display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px;
+  }
+  details.panel > summary::-webkit-details-marker { display: none; }
+  details.panel > summary:hover { color: #fff; }
+  details.panel > summary::after {
+    content: ""; margin-left: auto; width: 7px; height: 7px; flex: none;
+    border-right: 1.7px solid var(--dim); border-bottom: 1.7px solid var(--dim);
+    transform: rotate(45deg); transition: transform .15s;
+  }
+  details.panel[open] > summary::after { transform: rotate(-135deg); }
+  details.panel[open] > summary { border-bottom: 1px solid var(--line); }
+  details.panel > summary span { font-weight: 400; font-size: 12px; color: var(--dim); }
+  .body { padding: 18px; }
+
+  /* ── repo chips ───────────────────────────────────────────────────────── */
+  #repoList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; max-height: 208px; overflow: auto; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
+    border: 1px solid var(--line2); border-radius: 20px; padding: 4px 12px 4px 9px;
+    font-size: 12px; background: var(--sunk); transition: border-color .12s, background .12s;
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: none; }
+  .chip:hover { border-color: #3b4759; }
+  .chip.on { border-color: var(--accent-line); background: var(--accent-bg); color: #fff; }
+  .chip.on::before { background: var(--green); box-shadow: 0 0 0 3px rgba(63,185,80,.18); }
+
+  /* ── table ────────────────────────────────────────────────────────────── */
+  .tablewrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: auto; max-height: 68vh; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th {
+    position: sticky; top: 0; z-index: 1; background: var(--panel2); color: var(--faint);
+    font-size: 10.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase;
+  }
+  td a { font-weight: 500; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--panel2); }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px;
+    border-radius: 20px; border: 1px solid; white-space: nowrap; text-transform: capitalize;
+  }
+  .b-open { color: #56d364; border-color: rgba(63,185,80,.4); background: rgba(63,185,80,.12); }
+  .b-merged { color: #bc8cff; border-color: rgba(163,113,247,.4); background: rgba(163,113,247,.12); }
+  .b-closed { color: #ff7b72; border-color: rgba(248,81,73,.4); background: rgba(248,81,73,.12); }
+  .b-draft { color: var(--dim); border-color: var(--line2); background: var(--raise); }
+
+  /* ── stats ────────────────────────────────────────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(256px, 1fr)); gap: 14px; }
+  .cards .panel:first-child { border-color: var(--accent-line); box-shadow: inset 0 0 0 1px rgba(76,141,255,.1); }
+  .stat { font-size: 29px; font-weight: 700; letter-spacing: -.03em; margin: 3px 0 0; }
+  .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--sunk); margin: 13px 0 10px; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 3.5px 0; }
+  .kv b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ── empty states, driven by :has() so no JS knows about them ─────────── */
+  .empty { display: none; padding: 48px 20px; text-align: center; color: var(--dim); font-size: 13px; }
+  .empty b { display: block; color: var(--fg); font-size: 14px; margin-bottom: 5px; }
+  .tablewrap:has(tbody:empty) table { display: none; }
+  .tablewrap:has(tbody:empty) .empty { display: block; }
+  #tab-stats:has(#statCards:empty) .empty { display: block; }
+  .repos:has(#repoList:empty) #repoList { display: none; }
+  .repos:has(#repoList:empty) .empty { display: block; padding: 26px 12px 4px; }
+
+  /* ── ops ──────────────────────────────────────────────────────────────── */
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .flow .arrow { color: var(--faint); }
+  .out { margin: 14px 0 0; font-size: 12.5px; color: var(--dim); white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .out:not(:empty) { padding: 11px 13px; border-radius: var(--r-sm); background: var(--sunk); border: 1px solid var(--line); }
+
+  @media (max-width: 760px) {
+    .shell { padding: 14px 14px 48px; }
+    .hero { padding: 16px; }
+    .hero h1 { font-size: 21px; }
+    .hero .meta { text-align: left; }
+    nav.tabs { width: 100%; }
+    nav.tabs button { flex: 1; justify-content: center; padding: 0 8px; }
+    th, td { padding: 10px 12px; }
+  }
 </style>
 </head>
 <body>
 
-<section id="login" class="panel">
-  <h1 style="margin-bottom:14px">GitHub Ops</h1>
-  <input id="email" type="email" placeholder="email" autocomplete="username">
-  <input id="password" type="password" placeholder="password" autocomplete="current-password">
-  <div class="row">
-    <button id="loginBtn" class="primary">Log in</button>
-    <button id="signupBtn">Sign up</button>
+<section id="login">
+  <div class="auth">
+    <div class="brandline">
+      <span class="logo"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="4" cy="3.5" r="1.9"/><circle cx="4" cy="12.5" r="1.9"/><circle cx="12" cy="8" r="1.9"/><path d="M4 5.4v5.2M5.9 3.9h2.2A2 2 0 0 1 10.1 6v.4"/></svg></span>
+      <b>GitHub Ops</b>
+      <span class="tag">Console</span>
+    </div>
+    <div class="auth-card">
+      <h1>Sign in</h1>
+      <p class="sub">Your PRs, stats and merges across every repo.</p>
+      <label class="field"><span>Email</span>
+        <input id="email" type="email" placeholder="you@company.com" autocomplete="username">
+      </label>
+      <label class="field"><span>Password</span>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+      </label>
+      <div class="row" style="margin-top:16px">
+        <button id="loginBtn" class="primary grow" style="justify-content:center">Log in</button>
+        <button id="signupBtn">Sign up</button>
+      </div>
+      <p id="loginErr" class="err"></p>
+    </div>
+    <p class="fine" style="margin:16px 4px 0">Shared account with the other tools on open-api-worker.
+      Your password never leaves this page — only its SHA-256 hash.</p>
   </div>
-  <p id="loginErr" class="err"></p>
-  <p class="dim" style="font-size:12px">Shared account with the other tools on
-    open-api-worker. Password never leaves this page — only its SHA-256 hash.</p>
 </section>
 
 <div id="app" class="hidden">
-  <header>
-    <h1>GitHub Ops</h1>
-    <div class="row dim" style="font-size:12px">
-      <span id="whoami"></span>
-      <span id="rate"></span>
-      <button id="logoutBtn">Log out</button>
-    </div>
-  </header>
+  <div class="shell">
 
-  <div class="wrap">
+    <header class="panel hero">
+      <span class="logo"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="4" cy="3.5" r="1.9"/><circle cx="4" cy="12.5" r="1.9"/><circle cx="12" cy="8" r="1.9"/><path d="M4 5.4v5.2M5.9 3.9h2.2A2 2 0 0 1 10.1 6v.4"/></svg></span>
+      <h1>GitHub Ops</h1>
+      <span class="tag">Console</span>
+      <span class="spacer"></span>
+      <div class="meta">
+        <span id="whoami"></span>
+        <span id="rate"></span>
+      </div>
+      <button id="logoutBtn" class="ghost">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 11.5 13 8l-3-3.5M13 8H6M9 2.5H3.5v11H9"/></svg>
+        Log out
+      </button>
+    </header>
+
+    <div class="panel viewbar">
+      <span class="lbl">View</span>
+      <nav class="tabs">
+        <button data-tab="prs" class="on">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="4" cy="3.5" r="1.8"/><circle cx="4" cy="12.5" r="1.8"/><path d="M4 5.3v5.4"/><circle cx="12" cy="12.5" r="1.8"/><path d="M12 10.7V6a2 2 0 0 0-2-2H7.2m1.6-1.6L7 4l1.8 1.6"/></svg>
+          My PRs
+        </button>
+        <button data-tab="stats">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 13.5V9M8 13.5V2.5M13 13.5V6.5"/></svg>
+          Stats
+        </button>
+        <button data-tab="ops">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="4" cy="4" r="1.8"/><circle cx="12" cy="12" r="1.8"/><path d="M4 5.8v2.4A2.8 2.8 0 0 0 6.8 11h3.4"/></svg>
+          Ops
+        </button>
+      </nav>
+    </div>
+
     <!-- Native disclosure: open on first run (no token), collapsed once a valid
          token is stored. No toggle code, no modal. -->
-    <details id="settings" class="panel" style="margin-bottom:14px">
-      <summary>⚙ Settings <span id="patStatus" class="dim"></span></summary>
-      <div style="margin-top:14px">
+    <details id="settings" class="panel">
+      <summary>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.1"/><path d="M8 1.6v1.6M8 12.8v1.6M2.5 8H1M15 8h-1.5M4.1 4.1 3 3M13 13l-1.1-1.1M11.9 4.1 13 3M3 13l1.1-1.1"/></svg>
+        Settings <span id="patStatus"></span>
+      </summary>
+      <div class="body">
         <h2>GitHub token</h2>
         <div class="row">
-          <input id="pat" type="password" placeholder="ghp_… / github_pat_…" style="flex:1;min-width:240px">
+          <input id="pat" type="password" placeholder="ghp_… / github_pat_…" class="grow">
           <button id="patSave" class="primary">Save</button>
           <button id="patClear">Clear</button>
         </div>
-        <p id="patMsg" class="dim" style="font-size:12px;margin-bottom:0">
+        <p id="patMsg" class="fine" style="margin:12px 0 0">
           Needs <span class="mono">repo</span> scope. Stored in your synced settings on
           open-api-worker so it follows you across devices. For SSO orgs, authorize the
           token for the org first.
@@ -122,94 +316,117 @@
       </div>
     </details>
 
-    <div class="panel">
-      <h2>Repositories</h2>
-      <div class="row">
-        <input id="repoAdd" list="repoSuggest" autocomplete="off"
-               placeholder="type to search, or paste owner/repo — Enter to add" style="flex:1;min-width:240px">
-        <button id="repoAddBtn">Add</button>
-        <button id="repoFetch">Load mine</button>
+    <details id="repoPanel" class="panel repos" open>
+      <summary>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 3.2A1.7 1.7 0 0 1 4.2 1.5h7.6A1.7 1.7 0 0 1 13.5 3.2v11.3l-4.7-2.6-4.6 2.6V3.2Z"/></svg>
+        Repositories <span id="repoCount"></span>
+      </summary>
+      <div class="body">
+        <div class="row">
+          <input id="repoAdd" list="repoSuggest" autocomplete="off" class="grow"
+                 placeholder="type to search, or paste owner/repo — Enter to add">
+          <button id="repoAddBtn">Add</button>
+          <button id="repoFetch" class="indigo">Load mine</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <input id="repoFilter" placeholder="filter the list below…" class="grow" style="min-width:170px">
+          <button id="repoSelAll">Select all shown</button>
+          <button id="repoSelNone">None</button>
+        </div>
+        <div id="repoList"></div>
+        <div class="empty"><b>No repositories yet</b>Paste an <span class="mono">owner/repo</span> above, or hit “Load mine”.</div>
+        <!-- One datalist feeds every repo input: the add box and both ops
+             pickers. Holds your loaded repos plus any search hits. -->
+        <datalist id="repoSuggest"></datalist>
       </div>
-      <div class="row" style="margin-top:8px">
-        <input id="repoFilter" placeholder="filter the list below…" style="flex:1;min-width:180px">
-        <button id="repoSelAll">Select all shown</button>
-        <button id="repoSelNone">None</button>
-        <span id="repoCount" class="dim" style="font-size:12px"></span>
-      </div>
-      <div id="repoList"></div>
-      <!-- One datalist feeds every repo input: the add box and both ops
-           pickers. Holds your loaded repos plus any search hits. -->
-      <datalist id="repoSuggest"></datalist>
-    </div>
-
-    <nav class="tabs">
-      <button data-tab="prs" class="on">My PRs</button>
-      <button data-tab="stats">Stats</button>
-      <button data-tab="ops">Ops</button>
-    </nav>
+    </details>
 
     <section id="tab-prs">
-      <div class="row" style="margin-bottom:10px">
-        <select id="prState">
-          <option value="all">All states</option>
-          <option value="open">Open</option>
-          <option value="merged">Merged</option>
-          <option value="closed">Closed (unmerged)</option>
-        </select>
-        <input id="prFilter" placeholder="filter title/branch…" style="flex:1;min-width:180px">
-        <button id="prLoad" class="primary">Load PRs</button>
-        <span id="prMsg" class="dim"></span>
+      <div class="head">
+        <div>
+          <h1>My pull requests</h1>
+          <p>Everything you authored across the selected repositories. <span id="prMsg"></span></p>
+        </div>
+        <div class="row">
+          <select id="prState">
+            <option value="all">All states</option>
+            <option value="open">Open</option>
+            <option value="merged">Merged</option>
+            <option value="closed">Closed (unmerged)</option>
+          </select>
+          <input id="prFilter" placeholder="filter title/branch…" style="min-width:170px">
+          <button id="prLoad" class="primary">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M14 8a6 6 0 1 1-1.8-4.3M14 2v3h-3"/></svg>
+            Load PRs
+          </button>
+        </div>
       </div>
-      <div class="panel" style="padding:0;overflow:auto">
+      <div class="tablewrap">
         <table>
           <thead><tr><th>Repo</th><th>#</th><th>Title</th><th>State</th><th>Created</th><th>Updated</th></tr></thead>
           <tbody id="prRows"></tbody>
         </table>
+        <div class="empty"><b>Nothing loaded yet</b>Select a few repositories above, then hit “Load PRs”.</div>
       </div>
     </section>
 
     <section id="tab-stats" class="hidden">
+      <div class="head">
+        <div>
+          <h1>Stats</h1>
+          <p>Throughput per repo, computed from the loaded PRs — no extra API calls.</p>
+        </div>
+      </div>
       <div id="statCards" class="cards"></div>
-      <p class="dim" style="font-size:12px">Computed from the PR list above — hit “Load PRs” first.</p>
+      <div class="empty"><b>No data yet</b>Open “My PRs” and hit “Load PRs” first.</div>
     </section>
 
     <section id="tab-ops" class="hidden">
+      <div class="head">
+        <div>
+          <h1>Ops</h1>
+          <p>Writes land on GitHub immediately — there is no undo.</p>
+        </div>
+      </div>
+
       <div class="panel" style="margin-bottom:14px">
         <h2>Merge branch → branch</h2>
         <div class="row">
-          <input id="opsRepo" list="repoSuggest" autocomplete="off" placeholder="owner/repo" style="min-width:240px">
+          <input id="opsRepo" list="repoSuggest" autocomplete="off" placeholder="owner/repo" style="min-width:230px">
           <button id="opsBranches">Load branches</button>
         </div>
-        <div class="row" style="margin-top:10px">
-          <label class="dim">from (head)</label>
-          <input id="opsHead" list="branchList" placeholder="feature/…" style="min-width:200px">
-          <label class="dim">into (base)</label>
-          <input id="opsBase" list="branchList" placeholder="drop/…" style="min-width:200px">
+        <div class="flow">
+          <span class="lbl">from</span>
+          <input id="opsHead" list="branchList" placeholder="feature/…" style="min-width:190px">
+          <span class="arrow">→</span>
+          <span class="lbl">into</span>
+          <input id="opsBase" list="branchList" placeholder="drop/…" style="min-width:190px">
           <button id="opsCompare">Compare</button>
-          <button id="opsMerge" class="primary">Merge</button>
+          <button id="opsMerge" class="warn">Merge</button>
         </div>
         <!-- Both inputs share one datalist: native type-to-filter, and free
              text is still accepted so a branch outside the loaded page is
              usable without any combobox code. -->
         <datalist id="branchList"></datalist>
-        <p id="opsMsg" class="dim" style="white-space:pre-wrap"></p>
+        <p id="opsMsg" class="out"></p>
       </div>
 
       <div class="panel">
         <h2>Merge a pull request</h2>
         <div class="row">
-          <input id="prMergeRepo" list="repoSuggest" autocomplete="off" placeholder="owner/repo" style="min-width:240px">
-          <input id="prMergeNum" type="number" placeholder="PR #" style="width:110px">
+          <input id="prMergeRepo" list="repoSuggest" autocomplete="off" placeholder="owner/repo" style="min-width:230px">
+          <input id="prMergeNum" type="number" placeholder="PR #" style="width:100px">
           <select id="prMergeMethod">
             <option value="merge">merge commit</option>
             <option value="squash">squash</option>
             <option value="rebase">rebase</option>
           </select>
-          <button id="prMergeBtn" class="primary">Merge PR</button>
+          <button id="prMergeBtn" class="warn">Merge PR</button>
         </div>
-        <p id="prMergeMsg" class="dim" style="white-space:pre-wrap"></p>
+        <p id="prMergeMsg" class="out"></p>
       </div>
     </section>
+
   </div>
 </div>
 
